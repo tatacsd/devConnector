@@ -6,7 +6,7 @@ const ProfileSchema = new Schema({
     // create a reference to the user model
     user: {
         type: Schema.Types.ObjectId,
-        ref: 'users' // reference to the users collection
+        ref: 'user' // reference to the users collection
     },
     company: {
         type: String
