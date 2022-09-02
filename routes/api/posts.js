@@ -185,6 +185,95 @@ router.put(
     }
 );
 
+// @route   POST api/posts/comment/:id
+// @desc    Comment on a post
+// @access  Private
+router.post(
+    '/comment/:id',
+    [
+        auth,
+        [
+            check('text', 'Text is required').not().isEmpty()
+        ]
+    ],
+    async (req, res) => {
+        // check for errors
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        try {
+            // get user from db using the id from the token without the password
+            const user = await User.findById(req.user.id).select('-password');
+
+            // get post from db using the id from the url
+            const post = await Post.findById(req.params.id);
+
+            // create a new comment
+            const newComment = {
+                text: req.body.text,
+                name: user.name,
+                avatar: user.avatar,
+                user: req.user.id
+            };
+
+            // add the comment to the post
+            post.comments.unshift(newComment); // add to the beginning of the array
+            await post.save();
+
+            // return the post
+            res.json(post.comments);
+
+        } catch (error) {
+            console.error(error.message);
+            res.status(500).send('Server Error');
+        }
+    }
+);
+
+// @route   DELETE api/posts/comment/:id/:comment_id
+// @desc    Delete comment from a post
+// @access  Private
+router.delete(
+    '/comment/:id/:comment_id',
+    auth,
+    async (req, res) => {
+        try {
+            // get post from db using the id from the url
+            const post = await Post.findById(req.params.id);
+
+            // get comment from the post
+            const comment = post.comments.find(comment => comment.id === req.params.comment_id);
+
+            // Make sure comment exists
+            if (!comment) {
+                return res.status(404).json({ msg: 'Comment does not exist' });
+            }
+
+            // check if user owns the comment to delete
+            if (comment.user.toString() !== req.user.id) {
+                return res.status(401).json({ msg: 'User not authorized' });
+            }
+
+            // get remove index
+            const removeIndex = post.comments.map(comment => comment.user.toString()).indexOf(req.user.id);
+
+            // remove the comment from the post
+            post.comments.splice(removeIndex, 1);
+            await post.save();
+
+            // return the post
+            res.json(post.comments);
+
+        } catch (error) {
+            console.error(error.message);
+            res.status(500).send('Server Error');
+        }
+    }
+);
+
+
 
 // export the router
 module.exports = router;
